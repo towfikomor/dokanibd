@@ -7,81 +7,105 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #f8f9fa; color: #333; display: flex; height: 100vh; overflow: hidden; }
-        sidebar { width: 250px; background: #222; color: white; display: flex; flex-direction: column; }
+        sidebar { width: 260px; background: #222; color: white; display: flex; flex-direction: column; }
         .sidebar-brand { padding: 20px; font-size: 20px; font-weight: bold; background: #e91e63; text-align: center; }
         .sidebar-menu { list-style: none; padding: 20px 0; flex: 1; }
-        .sidebar-menu li { padding: 12px 20px; cursor: pointer; font-size: 15px; }
+        .sidebar-menu li { padding: 14px 20px; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 10px; transition: background 0.2s; }
         .sidebar-menu li:hover, .sidebar-menu li.active { background: #333; color: #e91e63; border-left: 4px solid #e91e63; }
         .main-content { flex: 1; padding: 30px; overflow-y: auto; background: #f8f9fa; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        h2 { margin-bottom: 20px; color: #222; }
+        h3 { margin-bottom: 15px; color: #444; font-size: 18px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; font-size: 14px; }
-        th { background: #f8f9fa; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; }
-        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn { background: #e91e63; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; font-size: 14px; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        textarea { resize: vertical; height: 80px; }
+        .btn { background: #e91e63; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
         .btn:hover { background: #c2185b; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #fff; font-weight: 500; }
+        .status-badge.Processing { background: #17a2b8; }
+        .status-badge.Shipped { background: #007bff; }
+        .status-badge.Delivered { background: #28a745; }
+        .status-badge.Cancelled { background: #dc3545; }
     </style>
 </head>
 <body>
+
 <sidebar>
-    <div class="sidebar-brand">Dokanibd Admin</div>
+    <div class="sidebar-brand"><i class="fa-solid fa-store"></i> Dokanibd Admin</div>
     <ul class="sidebar-menu">
         <li class="active" onclick="switchTab('ordersTab', this)"><i class="fa-solid fa-box"></i> Order Processing</li>
         <li onclick="switchTab('inventoryTab', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventory & Products</li>
         <li onclick="switchTab('gatewayTab', this)"><i class="fa-solid fa-credit-card"></i> Payment Gateways</li>
         <li onclick="switchTab('usersTab', this)"><i class="fa-solid fa-users"></i> User Management</li>
-        <li onclick="window.location.href='index.html'" style="color: #ff4081;"><i class="fa-solid fa-store"></i> Back to Store</li>
+        <li onclick="window.location.href='index.html'" style="color: #ff4081; margin-top: auto;"><i class="fa-solid fa-arrow-left"></i> Back to Store</li>
     </ul>
 </sidebar>
 
 <div class="main-content">
-    <!-- Order Processing -->
+    
+    <!-- Order Processing Tab -->
     <div id="ordersTab" class="tab-content active">
-        <h2>Order Processing</h2>
+        <h2>Customer Order Processing</h2>
         <div class="card">
+            <h3>Recent Orders & Transaction Logs</h3>
             <table>
                 <thead>
-                    <tr><th>ID</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Action</th></tr>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Total (BDT/$)</th>
+                        <th>Payment Method</th>
+                        <th>Fulfillment Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
-                <tbody id="ordersTable"></tbody>
+                <tbody id="ordersTable">
+                    <tr><td colspan="6" style="text-align: center; color: #777;">Loading orders...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Inventory -->
-    <div id="inventoryTab" class="tab-content container tab-pane">
+    <!-- Inventory & Products Tab -->
+    <div id="inventoryTab" class="tab-content">
         <h2>Inventory Management & Products</h2>
         <div class="card">
             <h3>Add New Product</h3>
-            <form onsubmit="addProduct(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
-                <div class="form-group"><label>Name</label><input type="text" id="pName" required></div>
-                <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="pPrice" required></div>
-                <div class="form-group"><label>Stock</label><input type="number" id="pStock" required></div>
-                <div class="form-group"><label>Category ID (1:Elec, 2:Gro, 3:Fash)</label><input type="number" id="pCat" value="1" required></div>
-                <div class="form-group" style="grid-column: 1/-1;"><label>Image URL</label><input type="text" id="pImage" required></div>
-                <div class="form-group" style="grid-column: 1/-1;"><label>Description</label><textarea id="pDesc"></textarea></div>
-                <button type="submit" class="btn" style="grid-column: 1/-1;">Add Product</button>
+            <form onsubmit="addProduct(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group"><label>Product Name</label><input type="text" id="pName" placeholder="e.g. Smart Watch" required></div>
+                <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="pPrice" placeholder="45.00" required></div>
+                <div class="form-group"><label>Stock Quantity</label><input type="number" id="pStock" placeholder="50" required></div>
+                <div class="form-group"><label>Category ID (1: Electronics, 2: Groceries, 3: Fashion)</label><input type="number" id="pCat" value="1" required></div>
+                <div class="form-group" style="grid-column: 1/-1;"><label>Image URL</label><input type="text" id="pImage" placeholder="https://images.unsplash.com/..." required></div>
+                <div class="form-group" style="grid-column: 1/-1;"><label>Description</label><textarea id="pDesc" placeholder="Enter product description..."></textarea></div>
+                <button type="submit" class="btn" style="grid-column: 1/-1;">Publish Product</button>
             </form>
         </div>
         <div class="card">
-            <h3>Existing Products Inventory</h3>
+            <h3>Existing Inventory Stock</h3>
             <table>
-                <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead>
-                <tbody id="inventoryTable"></tbody>
+                <thead>
+                    <tr><th>ID</th><th>Product Name</th><th>Price</th><th>Current Stock</th><th>Action</th></tr>
+                </thead>
+                <tbody id="inventoryTable">
+                    <tr><td colspan="5" style="text-align: center; color: #777;">Loading inventory...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Payment Gateways -->
+    <!-- Payment Gateways Tab -->
     <div id="gatewayTab" class="tab-content">
         <h2>Payment Gateway Integration</h2>
         <div class="card">
-            <h3>bKash Personal Retail Account API Integration</h3>
-            <form onsubmit="saveSettings(event)" style="margin-top: 15px;">
+            <h3>bKash Tokenized API Configuration</h3>
+            <form onsubmit="saveSettings(event)" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
                 <div class="form-group">
                     <label>Enable bKash Gateway</label>
                     <select id="bkashEnabled">
@@ -90,22 +114,41 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>bKash Merchant / Personal Retail Number</label>
-                    <input type="text" id="bkashMerchantNum" required>
+                    <label>Environment Mode</label>
+                    <select id="bkashSandbox">
+                        <option value="true">Sandbox (Testing)</option>
+                        <option value="false">Live (Production)</option>
+                    </select>
                 </div>
-                <button type="submit" class="btn">Save Gateway Settings</button>
+                <div class="form-group">
+                    <label>App Key</label>
+                    <input type="text" id="bkashAppKey" placeholder="Enter bKash App Key" required>
+                </div>
+                <div class="form-group">
+                    <label>App Secret</label>
+                    <input type="password" id="bkashAppSecret" placeholder="Enter bKash App Secret" required>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="bkashUsername" placeholder="Enter API Username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="bkashPassword" placeholder="Enter API Password" required>
+                </div>
+                <button type="submit" class="btn">Save bKash API Settings</button>
             </form>
         </div>
     </div>
 
-    <!-- User Management -->
+    <!-- User Management Tab -->
     <div id="usersTab" class="tab-content">
         <h2>User Management</h2>
         <div class="card">
-            <h3>Create User / Admin</h3>
-            <form onsubmit="createUser(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
-                <div class="form-group"><label>Name</label><input type="text" id="uName" required></div>
-                <div class="form-group"><label>Email</label><input type="email" id="uEmail" required></div>
+            <h3>Create Customer or Admin Account</h3>
+            <form onsubmit="createUser(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group"><label>Full Name</label><input type="text" id="uName" required></div>
+                <div class="form-group"><label>Email Address</label><input type="email" id="uEmail" required></div>
                 <div class="form-group"><label>Password</label><input type="password" id="uPass" required></div>
                 <div class="form-group"><label>Role</label><select id="uRole"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
                 <button type="submit" class="btn" style="grid-column: 1/-1;">Create User</button>
@@ -115,18 +158,21 @@
             <h3>All Registered Users</h3>
             <table>
                 <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-                <tbody id="usersTable"></tbody>
+                <tbody id="usersTable">
+                    <tr><td colspan="4" style="text-align: center; color: #777;">Loading users...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
+
 </div>
 
 <script>
     async function initAdmin() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user || user.role !== 'admin') {
-            alert('Unauthorized access.');
-            window.location.href = 'index.html';
+            alert('Unauthorized access. Please log in as an administrator.');
+            window.location.href = 'login.html';
             return;
         }
         loadOrders();
@@ -150,22 +196,22 @@
             html += `
                 <tr>
                     <td>#${o.id}</td>
-                    <td>${o.customer_name} (${o.customer_email})</td>
+                    <td>${o.customer_name}<br><small style="color:#777;">${o.customer_email}</small></td>
                     <td>$${o.total_amount.toFixed(2)}</td>
-                    <td>${o.payment_method} (${o.payment_status})</td>
+                    <td>${o.payment_method} (${o.payment_status}) ${o.bkash_trx_id ? '<br><small>TrxID: ' + o.bkash_trx_id + '</small>' : ''}</td>
                     <td>
-                        <select onchange="updateOrderStatus(${o.id}, this.value)">
+                        <select onchange="updateOrderStatus(${o.id}, this.value)" style="padding: 5px;">
                             <option value="Processing" ${o.order_status === 'Processing' ? 'selected' : ''}>Processing</option>
                             <option value="Shipped" ${o.order_status === 'Shipped' ? 'selected' : ''}>Shipped</option>
                             <option value="Delivered" ${o.order_status === 'Delivered' ? 'selected' : ''}>Delivered</option>
                             <option value="Cancelled" ${o.order_status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
                         </select>
                     </td>
-                    <td><button class="btn" style="padding:4px 8px; font-size:12px;" onclick="alert('TrxID: ${o.bkash_trx_id || 'N/A'}')">View Details</button></td>
+                    <td><button class="btn" style="padding:5px 10px; font-size:12px;" onclick="alert('Order #${o.id}\\nCustomer: ${o.customer_name}\\nTotal: $${o.total_amount.toFixed(2)}\\nPayment: ${o.payment_method}\\nbKash TrxID: ${o.bkash_trx_id || 'N/A'}')">View Details</button></td>
                 </tr>
             `;
         });
-        document.getElementById('ordersTable').innerHTML = html || '<tr><td colspan="6">No orders</td></tr>';
+        document.getElementById('ordersTable').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders found.</td></tr>';
     }
 
     async function updateOrderStatus(orderId, status) {
@@ -176,6 +222,7 @@
         });
         const result = await res.json();
         alert(result.message);
+        loadOrders();
     }
 
     async function loadInventory() {
@@ -188,8 +235,8 @@
                     <td>${p.id}</td>
                     <td>${p.name}</td>
                     <td>$${p.price.toFixed(2)}</td>
-                    <td><input type="number" id="stock_${p.id}" value="${p.stock}" style="width:80px;"></td>
-                    <td><button class="btn" style="padding:4px 8px;" onclick="updateStock(${p.id})">Update Stock</button></td>
+                    <td><input type="number" id="stock_${p.id}" value="${p.stock}" style="width:90px; padding:5px;"></td>
+                    <td><button class="btn" style="padding:5px 10px; font-size:13px;" onclick="updateStock(${p.id})">Update Stock</button></td>
                 </tr>
             `;
         });
@@ -236,25 +283,35 @@
     }
 
     async function loadSettings() {
-        const res = await fetch('/api/settings');
+        const res = await fetch('/api/admin/settings');
         const s = await res.json();
         document.getElementById('bkashEnabled').value = s.bkash_enabled || 'false';
-        document.getElementById('bkashMerchantNum').value = s.bkash_merchant_number || '';
+        document.getElementById('bkashSandbox').value = s.bkash_sandbox || 'true';
+        document.getElementById('bkashAppKey').value = s.bkash_app_key || '';
+        document.getElementById('bkashAppSecret').value = s.bkash_app_secret || '';
+        document.getElementById('bkashUsername').value = s.bkash_username || '';
+        document.getElementById('bkashPassword').value = s.bkash_password || '';
     }
 
     async function saveSettings(e) {
         e.preventDefault();
-        await fetch('/api/admin/settings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ key: 'bkash_enabled', value: document.getElementById('bkashEnabled').value })
-        });
-        await fetch('/api/admin/settings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ key: 'bkash_merchant_number', value: document.getElementById('bkashMerchantNum').value })
-        });
-        alert('Payment gateway settings saved successfully!');
+        const settings = [
+            { key: 'bkash_enabled', value: document.getElementById('bkashEnabled').value },
+            { key: 'bkash_sandbox', value: document.getElementById('bkashSandbox').value },
+            { key: 'bkash_app_key', value: document.getElementById('bkashAppKey').value },
+            { key: 'bkash_app_secret', value: document.getElementById('bkashAppSecret').value },
+            { key: 'bkash_username', value: document.getElementById('bkashUsername').value },
+            { key: 'bkash_password', value: document.getElementById('bkashPassword').value }
+        ];
+
+        for (let item of settings) {
+            await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(item)
+            });
+        }
+        alert('bKash API configuration saved successfully!');
     }
 
     async function loadUsers() {
@@ -262,7 +319,7 @@
         const users = await res.json();
         let html = '';
         users.forEach(u => {
-            html += `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td>${u.role}</td></tr>`;
+            html += `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td><strong>${u.role}</strong></td></tr>`;
         });
         document.getElementById('usersTable').innerHTML = html;
     }

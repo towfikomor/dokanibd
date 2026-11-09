@@ -17,10 +17,9 @@
         .checkout-box { margin-top: 30px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #eee; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: 600; }
-        select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         .btn { background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; }
         .btn:hover { background: #218838; }
-        .bkash-box { background: #e91e6315; border: 1px solid #e91e63; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: none; }
     </style>
 </head>
 <body>
@@ -43,6 +42,11 @@
             alert('Please login first.');
             window.location.href = 'login.html';
             return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === 'bkash_payment_failed') {
+            alert('bKash payment was cancelled or failed. Please try again.');
         }
 
         const setRes = await fetch('/api/settings');
@@ -76,10 +80,9 @@
         html += `</tbody></table>`;
         html += `<h3 style="text-align: right; margin-top: 20px;">Total Amount: $${total.toFixed(2)}</h3>`;
 
-        // Checkout Section
         let bkashOption = '';
         if (settings.bkash_enabled === 'true') {
-            bkashOption = `<option value="bKash">bKash Payment</option>`;
+            bkashOption = `<option value="bKash">Pay with bKash API</option>`;
         }
 
         html += `
@@ -87,31 +90,15 @@
                 <h3>Checkout Details</h3>
                 <div class="form-group" style="margin-top:15px;">
                     <label>Payment Method</label>
-                    <select id="paymentMethod" onchange="toggleBkash()">
+                    <select id="paymentMethod">
                         <option value="COD">Cash on Delivery (COD)</option>
                         ${bkashOption}
                     </select>
                 </div>
-                <div class="bkash-box" id="bkashBox">
-                    <p><strong>bKash Merchant/Personal Number:</strong> <span id="merchantNum">${settings.bkash_merchant_number || '01700000000'}</span></p>
-                    <p style="font-size: 13px; color: #555; margin: 5px 0 10px 0;">Send money to this number via bKash and provide your Transaction ID below:</p>
-                    <label>bKash Transaction ID (TrxID)</label>
-                    <input type="text" id="bkashTrxId" placeholder="e.g. 9H78X2KL9P">
-                </div>
-                <button class="btn" onclick="submitOrder()">Place Order</button>
+                <button class="btn" onclick="submitOrder()">Proceed to Checkout</button>
             </div>
         `;
         container.innerHTML = html;
-    }
-
-    function toggleBkash() {
-        const method = document.getElementById('paymentMethod').value;
-        const box = document.getElementById('bkashBox');
-        if (method === 'bKash') {
-            box.style.display = 'block';
-        } else {
-            box.style.display = 'none';
-        }
     }
 
     async function removeItem(cartItemId) {
@@ -126,25 +113,23 @@
     async function submitOrder() {
         const user = JSON.parse(localStorage.getItem('user'));
         const method = document.getElementById('paymentMethod').value;
-        let trxId = null;
-
-        if (method === 'bKash') {
-            trxId = document.getElementById('bkashTrxId').value;
-            if (!trxId) {
-                alert('Please enter your bKash Transaction ID.');
-                return;
-            }
-        }
 
         const res = await fetch('/api/checkout', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ user_id: user.id, payment_method: method, bkash_trx_id: trxId })
+            body: JSON.stringify({ user_id: user.id, payment_method: method })
         });
         const result = await res.json();
-        alert(result.message);
+        
         if (res.ok) {
-            window.location.href = 'orders.html';
+            if (method === 'bKash' && result.bkashURL) {
+                window.location.href = result.bkashURL; // Redirect to official bKash popup gateway
+            } else {
+                alert(result.message);
+                window.location.href = 'orders.html';
+            }
+        } else {
+            alert(result.message);
         }
     }
 

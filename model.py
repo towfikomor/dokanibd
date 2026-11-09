@@ -1,3 +1,4 @@
+# model.py
 import sqlite3
 import hashlib
 import datetime
@@ -21,7 +22,7 @@ class ECommerceModel:
                 name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                role TEXT DEFAULT 'customer' -- 'customer' or 'admin'
+                role TEXT DEFAULT 'customer'
             );
 
             CREATE TABLE IF NOT EXISTS categories (
@@ -53,9 +54,9 @@ class ECommerceModel:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 total_amount REAL NOT NULL,
-                payment_method TEXT NOT NULL, -- 'COD' or 'bKash'
-                payment_status TEXT DEFAULT 'Pending', -- 'Pending', 'Paid', 'Failed'
-                order_status TEXT DEFAULT 'Processing', -- 'Processing', 'Shipped', 'Delivered', 'Cancelled'
+                payment_method TEXT NOT NULL,
+                payment_status TEXT DEFAULT 'Pending',
+                order_status TEXT DEFAULT 'Processing',
                 bkash_trx_id TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
@@ -77,7 +78,6 @@ class ECommerceModel:
             );
         """)
         
-        # Seed default admin and settings if not exist
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
         if cur.fetchone()[0] == 0:
@@ -86,15 +86,21 @@ class ECommerceModel:
                         ("Dokanibd Admin", "admin@dokanibd.com", hashed_pw, "admin"))
             conn.commit()
 
-        cur.execute("SELECT COUNT(*) FROM settings WHERE key = 'bkash_enabled'")
-        if cur.fetchone()[0] == 0:
-            cur.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [
-                ("bkash_enabled", "true"),
-                ("bkash_merchant_number", "01700000000")
-            ])
-            conn.commit()
+        # Seed default bKash API configuration settings if missing
+        default_settings = [
+            ("bkash_enabled", "true"),
+            ("bkash_sandbox", "true"), # Set to 'false' when using live production credentials
+            ("bkash_app_key", ""),
+            ("bkash_app_secret", ""),
+            ("bkash_username", ""),
+            ("bkash_password", "")
+        ]
+        for key, val in default_settings:
+            cur.execute("SELECT COUNT(*) FROM settings WHERE key = ?", (key,))
+            if cur.fetchone()[0] == 0:
+                cur.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, val))
+                conn.commit()
 
-        # Seed categories & sample products if empty
         cur.execute("SELECT COUNT(*) FROM categories")
         if cur.fetchone()[0] == 0:
             cur.executemany("INSERT INTO categories (name) VALUES (?)", [
@@ -110,7 +116,6 @@ class ECommerceModel:
             conn.commit()
         conn.close()
 
-    # User Auth & Management
     def register_user(self, name, email, password, role="customer"):
         conn = self.get_connection()
         try:
@@ -141,7 +146,6 @@ class ECommerceModel:
         conn.close()
         return [dict(u) for u in users]
 
-    # Product Operations
     def get_products(self, category_id=None, search=None):
         conn = self.get_connection()
         query = "SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1"
@@ -178,7 +182,6 @@ class ECommerceModel:
         conn.close()
         return True, "Inventory updated."
 
-    # Cart Operations
     def add_to_cart(self, user_id, product_id, quantity=1):
         conn = self.get_connection()
         existing = conn.execute("SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ?",
@@ -210,8 +213,8 @@ class ECommerceModel:
         conn.close()
         return True, "Item removed."
 
-    # Order Lifecycle & Checkout
-    def checkout(self, user_id, payment_method, bkash_trx_id=None):
+    def create_order_record(self, user_id, payment_method, bkash_trx_id=None):
+        """Creates an order and adjusts stock levels."""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -223,13 +226,13 @@ class ECommerceModel:
 
             if not cart:
                 conn.close()
-                return False, "Cart is empty."
+                return None, "Cart is empty."
 
             total_amount = 0
             for item in cart:
                 if item['stock'] < item['quantity']:
                     conn.close()
-                    return False, f"Insufficient stock for {item['name']}."
+                    return None, f"Insufficient stock for {item['name']}."
                 total_amount += item['price'] * item['quantity']
 
             payment_status = "Paid" if payment_method == "bKash" else "Pending"
@@ -241,7 +244,6 @@ class ECommerceModel:
             order_id = cursor.lastrowid
 
             for item in cart:
-                subtotal = item['price'] * item['quantity']
                 cursor.execute("""
                     INSERT INTO order_items (order_id, product_id, quantity, price)
                     VALUES (?, ?, ?, ?)
@@ -251,10 +253,10 @@ class ECommerceModel:
             cursor.execute("DELETE FROM cart_items WHERE user_id = ?", (user_id,))
             conn.commit()
             conn.close()
-            return True, f"Order #{order_id} placed successfully!"
+            return order_id, f"Order #{order_id} placed successfully!"
         except Exception as e:
             conn.close()
-            return False, str(e)
+            return None, str(e)
 
     def get_orders(self, user_id=None, is_admin=False):
         conn = self.get_connection()
@@ -288,7 +290,6 @@ class ECommerceModel:
         conn.close()
         return True, "Order status updated."
 
-    # Settings & Gateway API
     def get_settings(self):
         conn = self.get_connection()
         rows = conn.execute("SELECT * FROM settings").fetchall()
