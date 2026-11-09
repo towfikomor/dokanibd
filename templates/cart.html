@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shopping Cart - Dokanibd</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8f9fa; color: #333; }
+        header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .logo { font-size: 24px; font-weight: bold; color: #e91e63; text-decoration: none; }
+        .container { max-width: 900px; margin: 30px auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; }
+        img { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
+        .checkout-box { margin-top: 30px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #eee; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .btn { background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; }
+        .btn:hover { background: #218838; }
+        .bkash-box { background: #e91e6315; border: 1px solid #e91e63; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+<header>
+    <a href="index.html" class="logo"><i class="fa-solid fa-store"></i> Dokanibd</a>
+    <a href="index.html" style="text-decoration: none; color: #555;"><i class="fa-solid fa-house"></i> Home</a>
+</header>
+<div class="container">
+    <h2>Shopping Cart</h2>
+    <div id="cartContent">Loading cart...</div>
+</div>
+
+<script>
+    let cartItems = [];
+    let settings = {};
+
+    async function loadCart() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert('Please login first.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        const setRes = await fetch('/api/settings');
+        settings = await setRes.json();
+
+        const res = await fetch(`/api/cart?user_id=${user.id}`);
+        cartItems = await res.json();
+
+        const container = document.getElementById('cartContent');
+        if (cartItems.length === 0) {
+            container.innerHTML = '<p>Your cart is empty.</p>';
+            return;
+        }
+
+        let total = 0;
+        let html = `<table><thead><tr><th>Image</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Action</th></tr></thead><tbody>`;
+        cartItems.forEach(item => {
+            const sub = item.price * item.quantity;
+            total += sub;
+            html += `
+                <tr>
+                    <td><img src="${item.image_url}"></td>
+                    <td>${item.name}</td>
+                    <td>$${item.price.toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${sub.toFixed(2)}</td>
+                    <td><button style="background:#dc3545; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="removeItem(${item.id})">Remove</button></td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        html += `<h3 style="text-align: right; margin-top: 20px;">Total Amount: $${total.toFixed(2)}</h3>`;
+
+        // Checkout Section
+        let bkashOption = '';
+        if (settings.bkash_enabled === 'true') {
+            bkashOption = `<option value="bKash">bKash Payment</option>`;
+        }
+
+        html += `
+            <div class="checkout-box">
+                <h3>Checkout Details</h3>
+                <div class="form-group" style="margin-top:15px;">
+                    <label>Payment Method</label>
+                    <select id="paymentMethod" onchange="toggleBkash()">
+                        <option value="COD">Cash on Delivery (COD)</option>
+                        ${bkashOption}
+                    </select>
+                </div>
+                <div class="bkash-box" id="bkashBox">
+                    <p><strong>bKash Merchant/Personal Number:</strong> <span id="merchantNum">${settings.bkash_merchant_number || '01700000000'}</span></p>
+                    <p style="font-size: 13px; color: #555; margin: 5px 0 10px 0;">Send money to this number via bKash and provide your Transaction ID below:</p>
+                    <label>bKash Transaction ID (TrxID)</label>
+                    <input type="text" id="bkashTrxId" placeholder="e.g. 9H78X2KL9P">
+                </div>
+                <button class="btn" onclick="submitOrder()">Place Order</button>
+            </div>
+        `;
+        container.innerHTML = html;
+    }
+
+    function toggleBkash() {
+        const method = document.getElementById('paymentMethod').value;
+        const box = document.getElementById('bkashBox');
+        if (method === 'bKash') {
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    async function removeItem(cartItemId) {
+        await fetch('/api/cart/remove', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ cart_item_id: cartItemId })
+        });
+        loadCart();
+    }
+
+    async function submitOrder() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const method = document.getElementById('paymentMethod').value;
+        let trxId = null;
+
+        if (method === 'bKash') {
+            trxId = document.getElementById('bkashTrxId').value;
+            if (!trxId) {
+                alert('Please enter your bKash Transaction ID.');
+                return;
+            }
+        }
+
+        const res = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user_id: user.id, payment_method: method, bkash_trx_id: trxId })
+        });
+        const result = await res.json();
+        alert(result.message);
+        if (res.ok) {
+            window.location.href = 'orders.html';
+        }
+    }
+
+    window.onload = loadCart;
+</script>
+</body>
+</html>

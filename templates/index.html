@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dokanibd - Online Shopping Store</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8f9fa; color: #333; }
+        header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 24px; font-weight: bold; color: #e91e63; text-decoration: none; }
+        .nav-links a { margin-left: 20px; text-decoration: none; color: #555; font-weight: 500; }
+        .nav-links a:hover { color: #e91e63; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .hero { background: linear-gradient(135deg, #e91e63, #ff4081); color: white; padding: 40px; border-radius: 10px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .filter-bar input, .filter-bar select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        .filter-bar input { flex: 1; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .product-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s; display: flex; flex-direction: column; }
+        .product-card:hover { transform: translateY(-5px); }
+        .product-card img { width: 100%; height: 200px; object-fit: cover; cursor: pointer; }
+        .product-info { padding: 15px; display: flex; flex-direction: column; flex: 1; }
+        .product-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; cursor: pointer; color: #222; }
+        .product-title:hover { color: #e91e63; }
+        .product-price { font-size: 18px; font-weight: bold; color: #e91e63; margin-bottom: 10px; }
+        .product-stock { font-size: 12px; color: #777; margin-bottom: 15px; }
+        .btn { background: #e91e63; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: 600; text-align: center; text-decoration: none; width: 100%; }
+        .btn:hover { background: #c2185b; }
+        .badge { background: #ff4081; color: white; padding: 2px 6px; border-radius: 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo"><i class="fa-solid fa-store"></i> Dokanibd</a>
+    <div class="nav-links" id="navLinks">
+        <a href="index.html"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="cart.html"><i class="fa-solid fa-cart-shopping"></i> Cart <span class="badge" id="cartCount">0</span></a>
+        <a href="orders.html" id="ordersLink" style="display:none;"><i class="fa-solid fa-box"></i> My Orders</a>
+        <a href="admin.html" id="adminLink" style="display:none; color: #d32f2f;"><i class="fa-solid fa-gauge"></i> Admin Panel</a>
+        <a href="login.html" id="loginLink"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+        <a href="#" id="logoutBtn" style="display:none; color: #d32f2f;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+    </div>
+</header>
+
+<div class="container">
+    <div class="hero">
+        <div>
+            <h1>Welcome to Dokanibd</h1>
+            <p>Shop quality items with Cash on Delivery or bKash Secure Payments.</p>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="Search products..." oninput="filterProducts()">
+        <select id="categorySelect" onchange="filterProducts()">
+            <option value="">All Categories</option>
+        </select>
+    </div>
+
+    <div class="product-grid" id="productGrid"></div>
+</div>
+
+<script>
+    let allProducts = [];
+
+    async function init() {
+        checkAuth();
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        allProducts = data.products;
+        
+        const catSelect = document.getElementById('categorySelect');
+        data.categories.forEach(c => {
+            catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+
+        renderProducts(allProducts);
+        updateCartCount();
+    }
+
+    function renderProducts(products) {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+        if (products.length === 0) {
+            grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #777;">No products found.</p>';
+            return;
+        }
+        products.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card">
+                    <img src="${p.image_url}" alt="${p.name}" onclick="viewProduct(${p.id})">
+                    <div class="product-info">
+                        <div class="product-title" onclick="viewProduct(${p.id})">${p.name}</div>
+                        <div class="product-price">$${p.price.toFixed(2)}</div>
+                        <div class="product-stock">Stock: ${p.stock} available</div>
+                        <button class="btn" onclick="addToCart(${p.id})"><i class="fa-solid fa-cart-plus"></i> Add to Cart</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function filterProducts() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const catId = document.getElementById('categorySelect').value;
+
+        const filtered = allProducts.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(search) || (p.description && p.description.toLowerCase().includes(search));
+            const matchesCat = !catId || p.category_id == catId;
+            return matchesSearch && matchesCat;
+        });
+        renderProducts(filtered);
+    }
+
+    function viewProduct(id) {
+        window.location.href = `product.html?id=${id}`;
+    }
+
+    async function addToCart(productId) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert('Please login to add items to cart.');
+            window.location.href = 'login.html';
+            return;
+        }
+        const res = await fetch('/api/cart/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user_id: user.id, product_id: productId, quantity: 1 })
+        });
+        const result = await res.json();
+        alert(result.message);
+        updateCartCount();
+    }
+
+    async function updateCartCount() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) return;
+        const res = await fetch(`/api/cart?user_id=${user.id}`);
+        const items = await res.json();
+        const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+        document.getElementById('cartCount').innerText = totalQty;
+    }
+
+    function checkAuth() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            document.getElementById('loginLink').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'inline';
+            document.getElementById('ordersLink').style.display = 'inline';
+            if (user.role === 'admin') {
+                document.getElementById('adminLink').style.display = 'inline';
+            }
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>

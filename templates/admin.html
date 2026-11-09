@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - Dokanibd</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8f9fa; color: #333; display: flex; height: 100vh; overflow: hidden; }
+        sidebar { width: 250px; background: #222; color: white; display: flex; flex-direction: column; }
+        .sidebar-brand { padding: 20px; font-size: 20px; font-weight: bold; background: #e91e63; text-align: center; }
+        .sidebar-menu { list-style: none; padding: 20px 0; flex: 1; }
+        .sidebar-menu li { padding: 12px 20px; cursor: pointer; font-size: 15px; }
+        .sidebar-menu li:hover, .sidebar-menu li.active { background: #333; color: #e91e63; border-left: 4px solid #e91e63; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; background: #f8f9fa; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; font-size: 14px; }
+        th { background: #f8f9fa; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn { background: #e91e63; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn:hover { background: #c2185b; }
+    </style>
+</head>
+<body>
+<sidebar>
+    <div class="sidebar-brand">Dokanibd Admin</div>
+    <ul class="sidebar-menu">
+        <li class="active" onclick="switchTab('ordersTab', this)"><i class="fa-solid fa-box"></i> Order Processing</li>
+        <li onclick="switchTab('inventoryTab', this)"><i class="fa-solid fa-boxes-stacked"></i> Inventory & Products</li>
+        <li onclick="switchTab('gatewayTab', this)"><i class="fa-solid fa-credit-card"></i> Payment Gateways</li>
+        <li onclick="switchTab('usersTab', this)"><i class="fa-solid fa-users"></i> User Management</li>
+        <li onclick="window.location.href='index.html'" style="color: #ff4081;"><i class="fa-solid fa-store"></i> Back to Store</li>
+    </ul>
+</sidebar>
+
+<div class="main-content">
+    <!-- Order Processing -->
+    <div id="ordersTab" class="tab-content active">
+        <h2>Order Processing</h2>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody id="ordersTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Inventory -->
+    <div id="inventoryTab" class="tab-content container tab-pane">
+        <h2>Inventory Management & Products</h2>
+        <div class="card">
+            <h3>Add New Product</h3>
+            <form onsubmit="addProduct(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <div class="form-group"><label>Name</label><input type="text" id="pName" required></div>
+                <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="pPrice" required></div>
+                <div class="form-group"><label>Stock</label><input type="number" id="pStock" required></div>
+                <div class="form-group"><label>Category ID (1:Elec, 2:Gro, 3:Fash)</label><input type="number" id="pCat" value="1" required></div>
+                <div class="form-group" style="grid-column: 1/-1;"><label>Image URL</label><input type="text" id="pImage" required></div>
+                <div class="form-group" style="grid-column: 1/-1;"><label>Description</label><textarea id="pDesc"></textarea></div>
+                <button type="submit" class="btn" style="grid-column: 1/-1;">Add Product</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Existing Products Inventory</h3>
+            <table>
+                <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead>
+                <tbody id="inventoryTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Payment Gateways -->
+    <div id="gatewayTab" class="tab-content">
+        <h2>Payment Gateway Integration</h2>
+        <div class="card">
+            <h3>bKash Personal Retail Account API Integration</h3>
+            <form onsubmit="saveSettings(event)" style="margin-top: 15px;">
+                <div class="form-group">
+                    <label>Enable bKash Gateway</label>
+                    <select id="bkashEnabled">
+                        <option value="false">Disabled</option>
+                        <option value="true">Enabled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>bKash Merchant / Personal Retail Number</label>
+                    <input type="text" id="bkashMerchantNum" required>
+                </div>
+                <button type="submit" class="btn">Save Gateway Settings</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Management -->
+    <div id="usersTab" class="tab-content">
+        <h2>User Management</h2>
+        <div class="card">
+            <h3>Create User / Admin</h3>
+            <form onsubmit="createUser(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <div class="form-group"><label>Name</label><input type="text" id="uName" required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="uEmail" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="uPass" required></div>
+                <div class="form-group"><label>Role</label><select id="uRole"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
+                <button type="submit" class="btn" style="grid-column: 1/-1;">Create User</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>All Registered Users</h3>
+            <table>
+                <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function initAdmin() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('Unauthorized access.');
+            window.location.href = 'index.html';
+            return;
+        }
+        loadOrders();
+        loadInventory();
+        loadSettings();
+        loadUsers();
+    }
+
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar-menu li').forEach(l => l.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        el.classList.add('active');
+    }
+
+    async function loadOrders() {
+        const res = await fetch('/api/orders?is_admin=true');
+        const orders = await res.json();
+        let html = '';
+        orders.forEach(o => {
+            html += `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>${o.customer_name} (${o.customer_email})</td>
+                    <td>$${o.total_amount.toFixed(2)}</td>
+                    <td>${o.payment_method} (${o.payment_status})</td>
+                    <td>
+                        <select onchange="updateOrderStatus(${o.id}, this.value)">
+                            <option value="Processing" ${o.order_status === 'Processing' ? 'selected' : ''}>Processing</option>
+                            <option value="Shipped" ${o.order_status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+                            <option value="Delivered" ${o.order_status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                            <option value="Cancelled" ${o.order_status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                    </td>
+                    <td><button class="btn" style="padding:4px 8px; font-size:12px;" onclick="alert('TrxID: ${o.bkash_trx_id || 'N/A'}')">View Details</button></td>
+                </tr>
+            `;
+        });
+        document.getElementById('ordersTable').innerHTML = html || '<tr><td colspan="6">No orders</td></tr>';
+    }
+
+    async function updateOrderStatus(orderId, status) {
+        const res = await fetch('/api/admin/order_status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ order_id: orderId, status })
+        });
+        const result = await res.json();
+        alert(result.message);
+    }
+
+    async function loadInventory() {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        let html = '';
+        data.products.forEach(p => {
+            html += `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>$${p.price.toFixed(2)}</td>
+                    <td><input type="number" id="stock_${p.id}" value="${p.stock}" style="width:80px;"></td>
+                    <td><button class="btn" style="padding:4px 8px;" onclick="updateStock(${p.id})">Update Stock</button></td>
+                </tr>
+            `;
+        });
+        document.getElementById('inventoryTable').innerHTML = html;
+    }
+
+    async function updateStock(productId) {
+        const stock = document.getElementById(`stock_${productId}`).value;
+        const res = await fetch('/api/admin/inventory', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ product_id: productId, stock })
+        });
+        const result = await res.json();
+        alert(result.message);
+        loadInventory();
+    }
+
+    async function addProduct(e) {
+        e.preventDefault();
+        const data = {
+            name: document.getElementById('pName').value,
+            price: document.getElementById('pPrice').value,
+            stock: document.getElementById('pStock').value,
+            category_id: document.getElementById('pCat').value,
+            image_url: document.getElementById('pImage').value,
+            description: document.getElementById('pDesc').value
+        };
+        const res = await fetch('/api/admin/add_product', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        alert(result.message);
+        if (res.ok) {
+            document.getElementById('pName').value = '';
+            document.getElementById('pPrice').value = '';
+            document.getElementById('pStock').value = '';
+            document.getElementById('pImage').value = '';
+            document.getElementById('pDesc').value = '';
+            loadInventory();
+        }
+    }
+
+    async function loadSettings() {
+        const res = await fetch('/api/settings');
+        const s = await res.json();
+        document.getElementById('bkashEnabled').value = s.bkash_enabled || 'false';
+        document.getElementById('bkashMerchantNum').value = s.bkash_merchant_number || '';
+    }
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ key: 'bkash_enabled', value: document.getElementById('bkashEnabled').value })
+        });
+        await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ key: 'bkash_merchant_number', value: document.getElementById('bkashMerchantNum').value })
+        });
+        alert('Payment gateway settings saved successfully!');
+    }
+
+    async function loadUsers() {
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        let html = '';
+        users.forEach(u => {
+            html += `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td>${u.role}</td></tr>`;
+        });
+        document.getElementById('usersTable').innerHTML = html;
+    }
+
+    async function createUser(e) {
+        e.preventDefault();
+        const data = {
+            name: document.getElementById('uName').value,
+            email: document.getElementById('uEmail').value,
+            password: document.getElementById('uPass').value,
+            role: document.getElementById('uRole').value
+        };
+        const res = await fetch('/api/admin/create_user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        alert(result.message);
+        if (res.ok) {
+            document.getElementById('uName').value = '';
+            document.getElementById('uEmail').value = '';
+            document.getElementById('uPass').value = '';
+            loadUsers();
+        }
+    }
+
+    window.onload = initAdmin;
+</script>
+</body>
+</html>

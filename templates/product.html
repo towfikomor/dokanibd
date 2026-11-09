@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Details - Dokanibd</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8f9fa; color: #333; }
+        header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .logo { font-size: 24px; font-weight: bold; color: #e91e63; text-decoration: none; }
+        .container { max-width: 900px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; gap: 40px; }
+        .product-img { width: 400px; height: 400px; object-fit: cover; border-radius: 8px; }
+        .product-details { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        h1 { margin-bottom: 15px; color: #222; }
+        .category { font-size: 14px; color: #777; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .price { font-size: 26px; font-weight: bold; color: #e91e63; margin-bottom: 15px; }
+        .description { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px; }
+        .stock { font-size: 14px; color: #666; margin-bottom: 20px; }
+        .btn { background: #e91e63; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 16px; text-align: center; }
+        .btn:hover { background: #c2185b; }
+    </style>
+</head>
+<body>
+<header>
+    <a href="index.html" class="logo"><i class="fa-solid fa-store"></i> Dokanibd</a>
+    <a href="index.html" style="text-decoration: none; color: #555;"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+</header>
+<div class="container" id="productContainer">
+    <p>Loading product...</p>
+</div>
+<script>
+    async function loadProduct() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if (!id) return;
+        const res = await fetch(`/api/product?id=${id}`);
+        const p = await res.json();
+        if (!p.id) {
+            document.getElementById('productContainer').innerHTML = '<h2>Product not found</h2>';
+            return;
+        }
+        document.getElementById('productContainer').innerHTML = `
+            <img src="${p.image_url}" class="product-img" alt="${p.name}">
+            <div class="product-details">
+                <div class="category">${p.category_name || 'General'}</div>
+                <h1>${p.name}</h1>
+                <div class="price">$${p.price.toFixed(2)}</div>
+                <div class="description">${p.description || 'No description provided.'}</div>
+                <div class="stock">Available Stock: <strong>${p.stock}</strong></div>
+                <button class="btn" onclick="addToCart(${p.id})"><i class="fa-solid fa-cart-plus"></i> Add to Cart</button>
+            </div>
+        `;
+    }
+
+    async function addToCart(productId) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            alert('Please login to add items to cart.');
+            window.location.href = 'login.html';
+            return;
+        }
+        const res = await fetch('/api/cart/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user_id: user.id, product_id: productId, quantity: 1 })
+        });
+        const result = await res.json();
+        alert(result.message);
+    }
+    window.onload = loadProduct;
+</script>
+</body>
+</html>

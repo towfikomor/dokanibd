@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Orders - Dokanibd</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8f9fa; color: #333; }
+        header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .logo { font-size: 24px; font-weight: bold; color: #e91e63; text-decoration: none; }
+        .container { max-width: 900px; margin: 30px auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .order-card { background: #fafafa; border: 1px solid #e1e1e1; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
+        .order-header { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; font-weight: 600; }
+        .status { padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #fff; background: #ffc107; }
+        .status.Processing { background: #17a2b8; }
+        .status.Shipped { background: #007bff; }
+        .status.Delivered { background: #28a745; }
+        .item-row { display: flex; align-items: center; gap: 15px; margin-bottom: 8px; font-size: 14px; }
+        .item-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<header>
+    <a href="index.html" class="logo"><i class="fa-solid fa-store"></i> Dokanibd</a>
+    <a href="index.html" style="text-decoration: none; color: #555;"><i class="fa-solid fa-house"></i> Home</a>
+</header>
+<div class="container">
+    <h2>My Order History</h2>
+    <div id="ordersList" style="margin-top: 20px;">Loading orders...</div>
+</div>
+<script>
+    async function loadOrders() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) {
+            window.location.href = 'login.html';
+            return;
+        }
+        const res = await fetch(`/api/orders?user_id=${user.id}`);
+        const orders = await res.json();
+        const container = document.getElementById('ordersList');
+        if (orders.length === 0) {
+            container.innerHTML = '<p>You have no orders yet.</p>';
+            return;
+        }
+        let html = '';
+        orders.forEach(o => {
+            let itemsHtml = '';
+            o.items.forEach(i => {
+                itemsHtml += `
+                    <div class="item-row">
+                        <img src="${i.image_url}">
+                        <div style="flex:1;">${i.product_name} (x${i.quantity})</div>
+                        <div>$${(i.price * i.quantity).toFixed(2)}</div>
+                    </div>
+                `;
+            });
+            html += `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div>Order #${o.id} <span style="font-weight:normal; color:#777; font-size:12px;">(${o.created_at})</span></div>
+                        <div><span class="status ${o.order_status}">${o.order_status}</span></div>
+                    </div>
+                    <div style="margin-bottom: 10px; font-size: 14px;">
+                        Payment: <strong>${o.payment_method}</strong> (${o.payment_status}) ${o.bkash_trx_id ? '| TrxID: ' + o.bkash_trx_id : ''}
+                    </div>
+                    ${itemsHtml}
+                    <div style="text-align: right; font-weight: bold; margin-top: 10px;">Total: $${o.total_amount.toFixed(2)}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    window.onload = loadOrders;
+</script>
+</body>
+</html>
